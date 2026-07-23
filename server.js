@@ -77,6 +77,30 @@ app.post('/auth/login', async (req, res) => {
     });
 });
 
+// --- STAGE 2: PUBLIC & PROTECTED GATES ---
+
+// GET /public/info (Public Route)
+app.get('/public/info', (req, res) => {
+    res.status(200).json({ message: "Welcome stranger! This info is public." });
+});
+
+// GET /protected/profile (Protected Route - Header Check Only)
+app.get('/protected/profile', (req, res) => {
+    const authHeader = req.headers.authorization;
+
+    // Check if Authorization header exists and starts with 'Bearer '
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: "Access token required" });
+    }
+
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ error: "Access token required" });
+    }
+
+    res.status(200).json({ message: "Access token received (unverified)" });
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log("Connected to Supabase successfully.");
