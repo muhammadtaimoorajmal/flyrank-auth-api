@@ -82,10 +82,10 @@ app.get('/public/info', (req, res) => {
     res.status(200).json({ message: "Welcome stranger! This info is public." });
 });
 
-// --- STAGE 3: PROFILE ROUTE TOKEN VERIFICATION ---
+// --- STAGE 4: MIDDLEWARE PROTECTION & LOGOUT ---
 
-// GET /protected/profile
-app.get('/protected/profile', async (req, res) => {
+// 1. Reusable Middleware Function
+const authenticateUser = async (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -104,15 +104,36 @@ app.get('/protected/profile', async (req, res) => {
         return res.status(401).json({ error: "Invalid or expired token" });
     }
 
-    // Return user details upon successful verification
+    // Attach user object and token to the request so routes can use them
+    req.user = user;
+    req.token = token;
+    
+    next(); // Proceed to the actual route handler
+};
+
+// 2. Refactored protected route using the middleware
+app.get('/protected/profile', authenticateUser, (req, res) => {
     res.status(200).json({
-        message: "Protected profile accessed successfully",
+        message: "Protected profile accessed successfully via middleware",
         user: {
-            id: user.id,
-            email: user.email,
-            created_at: user.created_at
+            id: req.user.id,
+            email: req.user.email,
+            created_at: req.user.created_at
         }
     });
+});
+
+// 3. POST /auth/logout (Also protected by middleware)
+app.post('/auth/logout', authenticateUser, async (req, res) => {
+    // Sign out from Supabase (invalidates the session)
+    const { error } = await supabase.auth.signOut(req.token);
+
+    if (error) {
+        return res.status(400).json({ error: error.message });
+    }
+
+    // 204 means "No Content" - a successful logout response
+    res.status(204).send(); 
 });
 
 app.listen(PORT, () => {
